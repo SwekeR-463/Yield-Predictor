@@ -1,47 +1,50 @@
-'''
-
-Flask API for yield prediction model
-
-
-'''
+# flask app for crop yield prediction
 
 from flask import Flask, request, jsonify
-import pandas as pd
 import joblib
+import pandas as pd
 
-def create_app():
-    app = Flask(__name__)
+app = Flask(__name__)
 
-    model = joblib.load('Yield_Prediction.pkl')
-    
-    with open('original_columns.pkl', 'rb') as f:
-        original_columns = joblib.load(f)
+model = joblib.load('Yield_Prediction.pkl')
 
-    @app.route('/')
-    def home():
-        return "Welcome to the Yield Prediction System!"
+with open('original_columns.pkl', 'rb') as f:
+    original_columns = joblib.load(f)
 
-    @app.route('/predict', methods=['POST'])
-    def predict():
-        try:
-            data = request.get_json()
+@app.route('/')
+def home():
+    return "Welcome to the Crop Yield Prediction System!"
 
-            input_data = pd.DataFrame([data])
+@app.route('/predict', methods=['POST'])
+def predict():
+    if request.is_json:
+        data = request.get_json()
 
-            input_data = pd.get_dummies(input_data)
+        Area = data['Area']
+        Production = data['Production']
+        Crop_Type = data['Crop_Type']
+        Season = data['Season']
+        State = data['State']
 
-            input_data = input_data.reindex(columns=original_columns, fill_value=0)
+        input_data = pd.DataFrame([{
+            'Area': Area,
+            'Production': Production,
+            'Crop_Type': Crop_Type,
+            'Season': Season,
+            'State': State
+        }])
 
-            prediction = model.predict(input_data)[0]
+        input_data = pd.get_dummies(input_data)
 
-            prediction = float(prediction)
+        input_data = input_data.reindex(columns=original_columns, fill_value=0)
 
-            return jsonify({'prediction': prediction})
-        except Exception as e:
-            return jsonify({'error': str(e)})
+        prediction = model.predict(input_data)[0]
 
-    return app
+        prediction = float(prediction)
+
+        return jsonify({'prediction': prediction})
+    else:
+        return jsonify({"error": "Unsupported Media Type"}), 415
 
 if __name__ == '__main__':
-    app = create_app()
     app.run(debug=True)
